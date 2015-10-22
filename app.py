@@ -23,18 +23,15 @@ def say_hi():
 
 @app.route('/translate/v0.1/chinese/tokenize/<phrase>')
 def tokenize_chinese_phrase(phrase):
-    tokens = []
-    for word in cedict.break_into_words(phrase):
-        tokens.append(word)
-    for word in tokens:
-        print(word)
+    tokens = [word for word in cedict.break_into_words(phrase)]
     return jsonify({'words': tokens})
     
 
 @app.route('/translate/v0.1/chinese/english/<chin_word>')
 def get_english_definition(chin_word):
-    pass
-
+    dict_entries = [entry.as_hash() for entry 
+                    in cedict.lookup_dict_entries(chin_word)]
+    return jsonify({'dict_entries': dict_entries})
 
 
 

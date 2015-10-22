@@ -3,7 +3,7 @@
 import re
 import os.path
 
-resource_dir = os.path.join(os.path.dirname(__file__), 'resources')
+resource_dir = os.path.join(os.path.dirname(__file__), '../resources')
 cedict_file = os.path.join(resource_dir, 'cedict_1_0_ts_utf-8_mdbg_20151013.txt')
 
 class EntryParseError(Exception):
@@ -23,6 +23,14 @@ class DictEntry:
         self.classifiers  = []
         self.propername   = False
 
+    def as_hash(self):
+        return {'simplified'     : self.simplified,
+                'traditional'    : self.traditional,
+                'pinyin'         : self.pinyin,
+                'englishdefinitions' : self.englishdefinitions,
+                'classifiers'    : self.classifiers,
+                'propername'     : self.propername}
+    
     @classmethod
     def parse_entry_line(cls, cedict_line):
         entry = cls('')
@@ -44,7 +52,7 @@ class DictEntry:
             else:
                 entry.classifiers.extend(get_classifiers_from_definition(definition))
         return entry
-    
+
             
 class ChineseSimplifiedDictionary:
     def __init__(self, dict_file=cedict_file):

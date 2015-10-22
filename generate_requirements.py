@@ -1,5 +1,7 @@
 #! /usr/bin/env python3
 
+# Regards to Jan Vlcinsky for providing this on StackOverflow
+
 import pip
 
 with open("requirements.txt", "w") as f:

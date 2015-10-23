@@ -6,7 +6,7 @@ from cccedictionary import ChineseSimplifiedDictionary
 app = Flask(__name__)
 
 resource_dir = os.path.join(os.path.dirname(__file__), '../resources')
-cedict_file = os.path.join(resource_dir, 'cedict_1_0_ts_utf-8_mdbg.txt')
+cedict_file = os.path.join(resource_dir, 'cedict_1_0_ts_utf-8_mdbg_20151013.txt')
 
 cedict = ChineseSimplifiedDictionary(cedict_file)
 
@@ -32,10 +32,6 @@ def get_english_definition(chin_word):
     dict_entries = [entry.as_hash() for entry 
                     in cedict.lookup_dict_entries(chin_word)]
     return jsonify({'dict_entries': dict_entries})
-
-
-
-
 
 
 

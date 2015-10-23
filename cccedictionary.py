@@ -61,7 +61,7 @@ class ChineseSimplifiedDictionary:
     def get_dict_file_entries(self, simplified):
         simplified  = simplified.strip()
         simplified_re = re.compile(r'[\w・，○]+\s+' + simplified + r'\s+')
-        for line in open(cedict_file):
+        for line in open(self.dict_file):
             if (simplified_re.match(line)):
                 yield line
 

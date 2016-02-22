@@ -24,12 +24,12 @@ class DictEntry:
         self.propername   = False
 
     def as_hash(self):
-        return {'simplified'     : self.simplified,
-                'traditional'    : self.traditional,
-                'pinyin'         : self.pinyin,
-                'englishdefinitions' : self.englishdefinitions,
-                'classifiers'    : self.classifiers,
-                'propername'     : self.propername}
+        return {'simplified'         : self.simplified,
+                'traditional'        : self.traditional,
+                'pinyin'             : self.pinyin,
+                'englishdefinitions' : '; '.join(self.englishdefinitions),
+                'classifiers'        : '; '.join(self.classifiers),
+                'propername'         : self.propername}
     
     @classmethod
     def parse_entry_line(cls, cedict_line):
@@ -53,10 +53,28 @@ class DictEntry:
                 entry.classifiers.extend(get_classifiers_from_definition(definition))
         return entry
 
+    @classmethod
+    def line_is_entry(cls, cedict_line):
+        match = cls.cedict_re.match(cedict_line)
+        if match is None: 
+            return False
+        else:
+            return True
+
             
 class ChineseSimplifiedDictionary:
     def __init__(self, dict_file=cedict_file):
         self.dict_file = dict_file
+
+    def get_entries(self, cnt=0, start=0):
+        idx = 0 
+        for line in open(self.dict_file):
+            if (DictEntry.line_is_entry(line)):
+                idx += 1
+                if (idx > start):
+                    yield DictEntry.parse_entry_line(line)
+                if (cnt > 0) and (idx >= cnt + start):
+                    break
 
     def get_dict_file_entries(self, simplified):
         simplified  = simplified.strip()

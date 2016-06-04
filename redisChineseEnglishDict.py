@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
 
-import redis 
+import redis
+import re
+
+from utils import get_recognized_components
 
 class RedisChineseEnglishDict:
+
+    def __init__(self, *args, **kwargs):
+        self.db = redis.StrictRedis(*args, **kwargs)
+        self.default_pinyin_score = 100
+        self.default_logograph_score = 100
+        self.default_pos_score = 100
+        self.default_definition_score = 100
 
     @staticmethod
     def key_word2logograph_set(pinyin):
@@ -28,25 +38,12 @@ class RedisChineseEnglishDict:
     def key_word2pos_set(simplified):
         return 'word:{}:chi:partsofspeech'.format(simplified)
     
-    def __init__(self, *args, **kwargs):
-        self.db = redis.StrictRedis(*args, **kwargs)
-        self.default_pinyin_score = 100
-        self.default_logograph_score = 100
-        self.default_pos_score = 100
-        self.default_definition_score = 100
-
     def db_sadd(self, *args):
         self.db.sadd(*args)
     
     def db_zadd(self, *args):
         self.db.zadd(*args)
     
-    def is_a_word(self, simp_word):
-        return self.db.exists(self.key_word2language_set(simp_word))
-
-    def lookup_entries(self, search_word):
-        yield None
-
     def add_word_language(self, word, language):
         self.db_sadd(self.key_word2language_set(word), language)
 
@@ -80,6 +77,30 @@ class RedisChineseEnglishDict:
         self.add_word_definition(simplified, pos, definition)
         self.add_word_partofspeech(simplified, pos)
 
+    def get_partsofspeech(self, simplified):
+        return [pos.decode('utf-8') for pos in
+                self.db.smembers(self.key_word2pos_set(simplified))]
+        
+    def is_a_word(self, simp_word):
+        return self.db.exists(self.key_word2language_set(simp_word))
+
+    def lookup_dict_entries(self, simplified):
+        return self.lookup_entries(simplified)
+    
+    def lookup_entries(self, simplified):
+        entries = []
+        for pos in self.get_partsofspeech(simplified):
+            definitions = [definition.decode('utf-8') for definition in
+                           self.db.zrange(self.key_word2posdefinitions_set(simplified, pos), 0, -1)]
+            entries.append(DictEntry(simplified=simplified,
+                                     part_of_speech=pos,
+                                     pinyin=self.pinyin(simplified)[0],
+                                     englishdefinitions=definitions))
+        return entries
+
+    def break_into_words(self, phrase):
+        yield from get_recognized_components(phrase, self.is_a_word, 8)
+
     def definitions(self, simplified):
         if (not self.is_a_word(simplified)):
             return []
@@ -94,20 +115,37 @@ class RedisChineseEnglishDict:
         return [pinyin.decode("utf-8")
                 for pinyin in self.db.zrange(
                         self.key_word2pinyin_set(simplified), 0, -1)]
-        
-    
-                
+
+    def words_iter(self):
+        word_re = re.compile(r'word:([\w・，○]+):language')
+        for redis_key in self.db.scan_iter():
+            redis_key = redis_key.decode("utf-8")
+            try:
+                yield word_re.match(redis_key).group(1)
+            except AttributeError:
+                pass
+
+    def get_entries(self, cnt=0, start=0):
+        for i, word in enumerate(self.words_iter()):
+            if i >= start:
+                yield from self.lookup_entries(word)
+            if i >= (start + cnt):
+                break
         
 
 class DictEntry:
-    def __init__(self, simplified, traditional='', pinyin=''):
+    def __init__(self, simplified,
+                 traditional='',
+                 pinyin='',
+                 englishdefinitions=[],
+                 classifiers=[],
+                 part_of_speech=''):
         self.simplified   = simplified
         self.traditional  = traditional
         self.pinyin       = pinyin
-        self.englishdefinitions = []
-        self.classifiers  = []
-        self.propername   = False
-        self.part_of_speech = ''
+        self.englishdefinitions = englishdefinitions
+        self.classifiers  = classifiers
+        self.part_of_speech = part_of_speech
 
     def as_hash(self):
         return {'simplified'         : self.simplified,
@@ -115,6 +153,10 @@ class DictEntry:
                 'pinyin'             : self.pinyin,
                 'englishdefinitions' : '; '.join(self.englishdefinitions),
                 'classifiers'        : '; '.join(self.classifiers),
-                'propername'         : self.propername}
+                'part_of_speech'     : self.part_of_speech}
 
     
+if __name__ == '__main__':
+    mydict = RedisChineseEnglishDict('192.168.99.100')
+    for entry in mydict.lookup_entries('老鸟'):
+        print(entry.as_hash())
